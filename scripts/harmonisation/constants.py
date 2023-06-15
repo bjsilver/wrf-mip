@@ -6,8 +6,6 @@ Created on Fri Jun  2 15:12:30 2023
 @author: eebjs
 """
 
-import xesmf as xe
+import numpy as np
 
-# create the common grid
-common_grid = xe.util.grid_2d(67, 140, .1, 16, 56, .1)
-
+common_grid = xr.Dataset(coords={'lon':np.arange(67, 140, .1), 'lat':np.arange(16,56,.1)})
