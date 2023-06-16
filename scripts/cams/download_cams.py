@@ -17,7 +17,10 @@ c.retrieve(
     {
         'date': '2017-05-01/2019-09-01',
         'format': 'netcdf',
-        'variable': 'carbon_monoxide',
+        'variable': [
+            'nitrogen_dioxide', 'ozone',
+            'particulate_matter_2.5um', 'sulphur_dioxide',
+        ],
         'time': [
             '00:00', '03:00', '06:00',
             '09:00', '12:00', '15:00',
