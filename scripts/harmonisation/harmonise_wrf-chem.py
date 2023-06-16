@@ -42,7 +42,7 @@ regridder.to_netcdf('./regridders/wrf-chem.nc')
 
 def regrid_month(month):
 
-    monthname = calendar.month_abbr[6]
+    monthname = calendar.month_abbr[month]
     spath = save_path+f'{monthname}_regridded.nc'
     if os.path.exists(spath):
         print(f'{monthname} already done')
