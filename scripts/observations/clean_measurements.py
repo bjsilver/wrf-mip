@@ -12,6 +12,8 @@ import numpy as np
 from scipy import stats
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import ruptures as rpt
+import os
 
 cnemc_path = '/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/'
 
@@ -59,9 +61,6 @@ def remove_extremes(sr, zscore_threshold=6):
     zscores = stats.zscore(sr, nan_policy='omit')#
     return sr.where(zscores < zscore_threshold)
     
-
-
-
 
 # sr = df[1274]
 # sr_flags = flags[1274]
@@ -131,10 +130,40 @@ def remove_consecutive_repeats(sr, thresh=8):
     new_sr[:] = new_a
     
     return new_sr
-    
-#%%
 
-def flag_non_normal_variability(sr, plot=False):
+#%% changepoint detection. this detects the presence of weird blocks
+
+def detect_daily_cv_changepoints(sr):
+    
+    # calculate difference between each hour of day
+    hour_diff = sr.groupby(sr.index.hour).diff()
+    
+    # calculate variation coefficient of each day of hourly differences
+    daily_cv = hour_diff.resample('D').std() / sr.resample('D').mean()
+    # only keep values where >= 20 hours of the day were not NaN
+    invalid = hour_diff.resample('D').count() >= 20
+    daily_cv = daily_cv.where(invalid)
+    
+    # record days with 0 CV (exact day-to-day repeats)
+    zero_cv = daily_cv == 0
+    # remove from time series (as creates inf when log transforming)
+    daily_cv = daily_cv.where(~zero_cv).dropna()
+    
+    # log transform daily cv
+    daily_cv = np.log(daily_cv)
+
+    # do changepoint detection
+    algo = rpt.Pelt(model='rbf').fit(daily_cv.values)
+    result = algo.predict(pen=20)
+    
+    if len(result) == 1:
+        return pd.Series([0]*len(sr))
+    elif len(result) > 1:
+        return pd.Series([1]*len(sr))
+
+#%% 
+
+def iterative_changepoint_detection(sr):
     
     # calculate difference between each hour of day
     hour_diff = sr.groupby(sr.index.hour).diff()
@@ -153,94 +182,59 @@ def flag_non_normal_variability(sr, plot=False):
     # log transform daily cv
     daily_cv = np.log(daily_cv)
     
-    # fit normal distribution
-    mu, std = stats.norm.fit(daily_cv)
-    
-    bins = np.linspace(daily_cv.quantile(.001), daily_cv.quantile(.999), 1000)
-    bin_width = bins[1] - bins[0]
-    bin_edges = np.linspace(bins[0] - bin_width/2, bins[-1]+bin_width/2, len(bins)+1)
-    
-    # Plot the histogram.
-    actual_dens, _ = np.histogram(daily_cv, bins=bin_edges, density=True)
-    normal_dens = stats.norm.pdf(bins, mu, std)
-    
-    if plot:
-        plt.hist(daily_cv, bins=bins, density=True, color='green', alpha=.5)
-        plt.plot(bins, normal_dens, 'k', linewidth=2)
-        title = "Fit results: mu = %.2f,  std = %.2f" % (mu, std)
-        xmin, xmax = plt.xlim()
-        plt.title(title)
+    start = 0
+    end = 365
+    station_flags = pd.Series(0, index=daily_cv.index, dtype=int)
+    while end < len(daily_cv-1):
+        ysr = daily_cv.iloc[start:end]
         
-    # check how good fit is
-    badness = pd.Series((actual_dens - normal_dens) / normal_dens)
-    
-    # flag bad data
-    binned = pd.cut(daily_cv, bin_edges)
-    badness.index = binned.value_counts().sort_index().index
-    badness.loc[np.nan] = 0
-    bseries = pd.Series(badness.loc[binned.values].values, index=binned.index)
+        start +=1; end +=1
+        
+        # do changepoint detection
+        algo = rpt.Pelt(model='rbf').fit(ysr.values)
+        result = algo.predict(pen=20)
+        if len(result) > 0:
+            station_flags.iloc[result] += 1
+        print(end)
+            
 
-    
-    flags = bseries > 3
-    flags = flags.resample('D').first()
-    flags.loc[zero_cv] = True
-    
-    # rolling median flags to find areas of consecutive flags
-    flags = flags.rolling(3, center=True).median()
-    
-    flags = flags.fillna(False)
-   
-    return flags.astype(int)
-        
 
 #%% 
-df = open_cnemc_df('no2')
-flags = []
-for station in tqdm(df.columns):
+
+def get_flags(pol):
+    df = open_cnemc_df(pol)
+    flags = []
+    for station in tqdm(df.columns):
+        
+        sr = df[station]
+        
+        if (sr.isnull().sum() / len(sr)) > .5:
+            print('!')
+            continue
+        
+        # first remove extreme values
+        # sr = remove_extremes(df[station])
     
-    sr = df[station]
+        sr = remove_consecutive_repeats(sr)
     
-    if (sr.isnull().sum() / len(sr)) > .9:
-        print('!')
+        station_flags = pd.Series(dtype=int, index=sr.index)
+        for year in sr.index.year.unique():
+            ysr = sr.loc[sr.index.year==year]
+            if (ysr.isnull().sum() / len(ysr)) > .5:
+                continue
+            station_flags.loc[ysr.index] = detect_daily_cv_changepoints(ysr).values
+    
+        station_flags.name = station
+        
+        flags.append(station_flags)
+        
+    flags = pd.concat(flags, axis=1).fillna(0)
+    return flags
+
+#%% main
+for pol in ['no2', 'ozone', 'pm2_5', 'so2']:
+    
+    if os.path.exists(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/flags/{pol}_flags.csv'):
         continue
-    
-    # first remove extreme values
-    # sr = remove_extremes(df[station])
-
-    sr = remove_consecutive_repeats(sr)    
-
-    res = flag_non_normal_variability(sr, plot=False)
-    res.name = station
-    # print(res.sum())
-    
-    flags.append(res)
-    
-flags = pd.concat(flags, axis=1).fillna(0)
-
-#%%
-
-#%% calculate flags/day
-
-flag_prop = pd.Series(index=df.columns, dtype=float)
-for station in df.columns:
-
-    
-    sr = df[station]
-    days_with_data = (sr.resample('D').count() >= 20).sum()
-    
-    if days_with_data < 365:
-        continue
-    
-    flagged_days = flags[station].sum()
-
-    flag_prop.loc[station] =  flagged_days / days_with_data
-    
-for station_id in flag_prop.nlargest(20).index:
-
-    
-    sr = df[station_id]
-    sr_flags = flags[station_id]
-    
-    plot_flags(sr, sr_flags)
-    
-    
+    pol_flags = get_flags(pol)
+    pol_flags.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/flags/{pol}_flags.csv')
