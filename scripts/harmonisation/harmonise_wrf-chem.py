@@ -67,3 +67,13 @@ def regrid_month(month):
 
 for month in [6,7,8]:
     regrid_month(month)
+    
+    
+#%% combine into one file
+wrf_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
+wrfchem = xr.open_mfdataset(wrf_path+'*_regridded.nc')
+wrfchem = wrfchem.persist()
+
+comp = dict(zlib=True, complevel=5)
+encoding = {var: comp for var in wrfchem.data_vars}
+wrfchem.to_netcdf('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/wrfchem_regridded.nc', encoding=encoding)
