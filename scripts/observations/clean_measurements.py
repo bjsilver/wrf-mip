@@ -100,10 +100,7 @@ def plot_flags(sr, sr_flags):
     plt.suptitle(f'{sr.name} flags={sr_flags.sum()}', y=.95)
     plt.subplots_adjust(hspace=.3)
 
-#%%
 
-bad = open_cnemc_year('no2', 2016)[1279]
-good = open_cnemc_year('no2', 2017)[1275]
 #%%
 
 def remove_consecutive_repeats(sr, thresh=8):
@@ -131,7 +128,7 @@ def remove_consecutive_repeats(sr, thresh=8):
     
     return new_sr
 
-#%% changepoint detection. this detects the presence of weird blocks
+#%% changepoint detection. this detects the presence of weird blocks 
 
 def detect_daily_cv_changepoints(sr):
     
@@ -141,100 +138,79 @@ def detect_daily_cv_changepoints(sr):
     # calculate variation coefficient of each day of hourly differences
     daily_cv = hour_diff.resample('D').std() / sr.resample('D').mean()
     # only keep values where >= 20 hours of the day were not NaN
-    invalid = hour_diff.resample('D').count() >= 20
+    invalid = hour_diff.resample('D').count() >= 18
     daily_cv = daily_cv.where(invalid)
     
     # record days with 0 CV (exact day-to-day repeats)
     zero_cv = daily_cv == 0
     # remove from time series (as creates inf when log transforming)
-    daily_cv = daily_cv.where(~zero_cv).dropna()
+    daily_cv = daily_cv.where(~zero_cv)
     
     # log transform daily cv
     daily_cv = np.log(daily_cv)
+    
+    algo = rpt.Window(width=30, model='rbf').fit(daily_cv.interpolate().dropna().values)
+    result = algo.predict(pen=30)
+    
+    return len(result)-1
+    
 
-    # do changepoint detection
-    algo = rpt.Pelt(model='rbf').fit(daily_cv.values)
+def get_changepoints(msr):
+
+    algo = rpt.Pelt(model='rbf').fit(msr.bfill().ffill().values)
     result = algo.predict(pen=20)
-    
-    if len(result) == 1:
-        return pd.Series([0]*len(sr))
-    elif len(result) > 1:
-        return pd.Series([1]*len(sr))
+    result = result[:-1]
+    return len(result)-1
 
-#%% 
 
-def iterative_changepoint_detection(sr):
-    
-    # calculate difference between each hour of day
-    hour_diff = sr.groupby(sr.index.hour).diff()
-    
-    # calculate variation coefficient of each day of hourly differences
-    daily_cv = hour_diff.resample('D').std() / sr.resample('D').mean()
-    # only keep values where >= 20 hours of the day were not NaN
-    invalid = hour_diff.resample('D').count() >= 20
-    daily_cv = daily_cv.where(invalid)
-    
-    # record days with 0 CV (exact day-to-day repeats)
-    zero_cv = daily_cv == 0
-    # remove from time series (as creates inf when log transforming)
-    daily_cv = daily_cv.where(~zero_cv).dropna()
-    
-    # log transform daily cv
-    daily_cv = np.log(daily_cv)
-    
-    start = 0
-    end = 365
-    station_flags = pd.Series(0, index=daily_cv.index, dtype=int)
-    while end < len(daily_cv-1):
-        ysr = daily_cv.iloc[start:end]
-        
-        start +=1; end +=1
-        
-        # do changepoint detection
-        algo = rpt.Pelt(model='rbf').fit(ysr.values)
-        result = algo.predict(pen=20)
-        if len(result) > 0:
-            station_flags.iloc[result] += 1
-        print(end)
-            
+def get_length(sr):
+    first, last = sr.dropna().iloc[[0, -1]].index
+    length = len(pd.date_range(first, last, freq='H'))
+    return length
 
 
 #%% 
 
-def get_flags(pol):
-    df = open_cnemc_df(pol)
-    flags = []
+def get_flags(df):
+    
+    flags = {}
+    cleaned = []
     for station in tqdm(df.columns):
         
         sr = df[station]
         
-        if (sr.isnull().sum() / len(sr)) > .5:
+        # drop areas where there is less than 24 measurements in a week
+        sr.loc[sr.rolling(24*7, center=True, min_periods=0).count() < 24] = np.nan
+        
+        possible_length = get_length(sr)
+        actual_length = len(sr.dropna())
+        
+        # if less than half of data present, skip
+        if actual_length/possible_length < .5:
             print('!')
             continue
         
-        # first remove extreme values
-        # sr = remove_extremes(df[station])
-    
-        sr = remove_consecutive_repeats(sr)
-    
-        station_flags = pd.Series(dtype=int, index=sr.index)
-        for year in sr.index.year.unique():
-            ysr = sr.loc[sr.index.year==year]
-            if (ysr.isnull().sum() / len(ysr)) > .5:
-                continue
-            station_flags.loc[ysr.index] = detect_daily_cv_changepoints(ysr).values
-    
-        station_flags.name = station
+        cleaned.append(remove_consecutive_repeats(remove_extremes(sr)))
         
-        flags.append(station_flags)
         
-    flags = pd.concat(flags, axis=1).fillna(0)
-    return flags
+        flags[station] = detect_daily_cv_changepoints(sr)
+        print(station)
+        
+    flags = pd.Series(flags)
+    cleaned = pd.concat(cleaned, axis=1)
 
+    return flags, cleaned
+# 
 #%% main
 for pol in ['no2', 'ozone', 'pm2_5', 'so2']:
     
-    if os.path.exists(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/flags/{pol}_flags.csv'):
+    if os.path.exists(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv'):
+        print(f'{pol} done!')
         continue
-    pol_flags = get_flags(pol)
-    pol_flags.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/flags/{pol}_flags.csv')
+    
+    # get flags
+    df = open_cnemc_df(pol)
+    flags, cleaned = get_flags(df)
+    
+    flags.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv')
+    cleaned.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{pol}_obs.csv')
