@@ -21,8 +21,6 @@ def get_latlons():
     mat = scipy.io.loadmat(cnemc_path+'latlon.mat')['latlon']
     df = pd.DataFrame(mat).T
     df = df.rename({0:'lon', 1:'lat', 2:'id'}, axis=1)
-    # get rid of dodgy row
-    df = df.drop(1590)
     df = df.set_index('id')
     df.index = df.index.astype(int)
     return df

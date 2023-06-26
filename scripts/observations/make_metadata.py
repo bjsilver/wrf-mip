@@ -30,11 +30,25 @@ meta = get_latlons()
 
 for pol in ['no2', 'ozone', 'pm2_5', 'so2']:
 
-    cleaned = pd.read_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{pol}_obs.csv', index_col=0)
-    flags =  pd.read_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv', index_col=0)
-#%%
+    cleaned = pd.read_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{pol}_obs.csv', 
+                          index_col=0, parse_dates=True)
+    flags =  pd.read_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv',
+                         index_col=0, parse_dates=True)
+
     for station in meta.index:
-        if str(station) in cleaned.columns:
-            meta.loc[station, f'{pol}'] = True
+        # if dropped
+        if station not in flags.index:
+            meta.loc[station, f'{pol}_clean'] = False
+            meta.loc[station, f'{pol}_flags'] = np.nan
+        
         else:
-            meta.loc[station, f'{pol}'] = False
+            n_flags = flags.loc[station][0]
+            # if in but flagged
+            if n_flags > 0:
+                meta.loc[station, f'{pol}_clean'] = False
+                meta.loc[station, f'{pol}_flags'] = n_flags
+            elif n_flags == 0:
+                meta.loc[station, f'{pol}_clean'] = True
+                meta.loc[station, f'{pol}_flags'] = 0
+                
+meta.to_csv(cnemc_path+'metadata.csv')  
