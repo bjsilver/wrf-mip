@@ -21,6 +21,8 @@ def get_latlons():
     mat = scipy.io.loadmat(cnemc_path+'latlon.mat')['latlon']
     df = pd.DataFrame(mat).T
     df = df.rename({0:'lon', 1:'lat', 2:'id'}, axis=1)
+    # get rid of dodgy row
+    df = df.drop(1590)
     df = df.set_index('id')
     df.index = df.index.astype(int)
     return df
@@ -204,13 +206,18 @@ def get_flags(df):
 #%% main
 for pol in ['no2', 'ozone', 'pm2_5', 'so2']:
     
-    if os.path.exists(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv'):
-        print(f'{pol} done!')
-        continue
+    name_map = {'no2':'no2',
+                'ozone':'o3',
+                'pm2_5':'pm25',
+                'so2':'so2'}
+    
+    # if os.path.exists(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv'):
+    #     print(f'{name_map[pol]} done!')
+    #     continue
     
     # get flags
     df = open_cnemc_df(pol)
     flags, cleaned = get_flags(df)
     
-    flags.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{pol}_flags.csv')
-    cleaned.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{pol}_obs.csv')
+    flags.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/flags/{name_map[pol]}_flags.csv')
+    cleaned.to_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{name_map[pol]}_obs.csv')
