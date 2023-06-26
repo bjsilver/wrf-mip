@@ -13,6 +13,7 @@ import regionmask
 import geopandas as gpd
 
 common_grid = xr.Dataset(coords={'lon':np.arange(67, 140, .1), 'lat':np.arange(16,56,.1)})
+models = ['wrfchem', 'wrfcmaq']
 
 #%% region mask of china
 
