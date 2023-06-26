@@ -7,8 +7,46 @@ Created on Fri Jun  2 15:12:30 2023
 """
 
 import xarray as xr
+import pandas as pd
+from tqdm import tqdm
+from scipy.interpolate import RegularGridInterpolator
+from constants import pollutants
+
 
 wrf_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
-wrf = xr.open_mfdataset(wrf_path+'*_regridded.nc')
+wrf = xr.open_dataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/wrfchem_regridded.nc')
 
 measurement_path = '/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/'
+meta = pd.read_csv(measurement_path+'metadata.csv', index_col=0)
+
+spath = measurement_path + 'wrfchem_interped/'
+
+
+def interpolate_wrfchem(wrf, pol):
+
+    da = wrf[pol]
+    
+    tindex = da.time.to_pandas().index.tz_localize('UTC')
+    timemap = pd.Series(tindex)
+    
+    points = (timemap.index.values, da.lat.values, da.lon.values)
+    interper = RegularGridInterpolator(points=points, values=da.values)
+
+    srs = []
+    for idn in tqdm(meta.index):
+        if idn == 1590:
+            continue
+        lat, lon = meta.loc[idn, ['lat', 'lon']]
+        if pd.isnull(lat):
+            continue
+        interped = interper((timemap.index.values, lat, lon))
+        sr =  pd.Series(interped, index=tindex)
+        sr.name = idn
+        srs.append(sr)
+        
+    df = pd.concat(srs, axis=1)
+        
+    df.to_csv(spath+f'{pol}_interped.csv')
+    
+for pol in pollutants:
+    interpolate_wrfchem(wrf, pol=pol)
