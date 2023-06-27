@@ -14,6 +14,7 @@ from glob import glob
 import calendar
 from tqdm import tqdm
 import os
+import molmass
 
 model_path = '/nfs/a336/libclsr/AIA/wrfchem_output/w4chinameic2017/'
 save_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/'
@@ -25,9 +26,45 @@ name_map = {'PM2_5_DRY':'pm25',
             'o3':'o3',
             'so2':'so2'}
 
+# unit conversion function
+def ppm_to_ugm3 (da, da_T2, da_PSFC):
+
+    name = da.name
+    new_attrs = da.attrs
+
+    # get variables needed
+    chem = da.name.upper()
+    M = molmass.Formula(chem).mass
+    R = 8.3145
+
+    # convert unit ppmv -> µg/m³
+    da = (M * da_PSFC * da) / (R * da_T2)
+
+    # update attributes with new units
+    new_attrs['units'] = 'ug m^-3'
+    new_attrs['description'] = chem + \
+                               ' mixing ratio converted to mass concentration'
+    da.attrs = new_attrs
+    da.name = name
+
+    return(da)
+
 #%% load in data 
 def preprocess(ds):
-    return ds.loc[{'bottom_top':0}][list(name_map.keys())]
+    
+    ds = ds.loc[{'bottom_top':0}]
+    
+    das = []
+    for pol in ['PM2_5_DRY', 'no2', 'o3', 'so2']:
+
+        da = ds[pol]
+        
+        if da.units == 'ppmv':
+            da = ppm_to_ugm3(da, ds['T2'], ds['PSFC'])
+            
+        das.append(da)
+    
+    return ds
 
 # get example ds for regridder
 model_ds = salem.open_mf_wrf_dataset(model_path+'wrfout_d01_2017-06-01*',
