@@ -17,7 +17,7 @@ import os
 import molmass
 
 model_path = '/nfs/a336/libclsr/AIA/wrfchem_output/w4chinameic2017/'
-save_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/'
+save_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
 
 file_list = glob(model_path+'wrfout_w4chinameic_*_2017.nc')
 
@@ -64,7 +64,7 @@ def preprocess(ds):
             
         das.append(da)
     
-    return ds
+    return xr.merge(das)
 
 # get example ds for regridder
 model_ds = salem.open_mf_wrf_dataset(model_path+'wrfout_d01_2017-06-01*',
