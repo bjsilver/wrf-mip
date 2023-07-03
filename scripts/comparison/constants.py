@@ -16,6 +16,10 @@ common_grid = xr.Dataset(coords={'lon':np.arange(67, 140, .1), 'lat':np.arange(1
 models = ['wrfchem', 'wrfcmaq']
 pollutants = ['pm25', 'o3', 'so2', 'no2']
 
+pretty_model = {'wrfchem':'WRF-Chem',
+                'wrf-cmaq':'WRF-CMAQ'}
+
+
 #%% region mask of china
 
 def create_china_regions():
