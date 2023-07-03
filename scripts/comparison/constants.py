@@ -17,7 +17,7 @@ models = ['wrfchem', 'wrfcmaq']
 pollutants = ['pm25', 'o3', 'so2', 'no2']
 
 pretty_model = {'wrfchem':'WRF-Chem',
-                'wrf-cmaq':'WRF-CMAQ'}
+                'wrfcmaq':'WRF-CMAQ'}
 
 pretty_pol = {'pm25':'$\mathrm{PM_{2.5}}$',
               'no2':'$\mathrm{NO_2}$',
