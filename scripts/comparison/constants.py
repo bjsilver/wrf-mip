@@ -19,6 +19,10 @@ pollutants = ['pm25', 'o3', 'so2', 'no2']
 pretty_model = {'wrfchem':'WRF-Chem',
                 'wrf-cmaq':'WRF-CMAQ'}
 
+pretty_pol = {'pm25':'$\mathrm{PM_{2.5}}$',
+              'no2':'$\mathrm{NO_2}$',
+              'so2':'$\mathrm{SO_2}$',
+              'o3':'$\mathrm{O_3}$'}
 
 #%% region mask of china
 
