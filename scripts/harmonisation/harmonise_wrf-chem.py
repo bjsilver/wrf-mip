@@ -97,9 +97,9 @@ def regrid_month(month):
     
     ds = ds.rename(name_map)
     
-    comp = dict(zlib=True, complevel=5)
-    encoding = {var: comp for var in ds.data_vars}
-    ds.to_netcdf(spath, encoding=encoding)
+    # comp = dict(zlib=True, complevel=5)
+    # encoding = {var: comp for var in ds.data_vars}
+    ds.to_netcdf(spath)
     print(monthname+' done')
 
 for month in [6,7,8]:
@@ -111,6 +111,6 @@ wrf_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
 wrfchem = xr.open_mfdataset(wrf_path+'*_regridded.nc')
 wrfchem = wrfchem.persist()
 
-comp = dict(zlib=True, complevel=5)
-encoding = {var: comp for var in wrfchem.data_vars}
-wrfchem.to_netcdf('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/wrfchem_regridded.nc', encoding=encoding)
+# comp = dict(zlib=True, complevel=5)
+# encoding = {var: comp for var in wrfchem.data_vars}
+wrfchem.to_netcdf('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/wrfchem_regridded.nc')
