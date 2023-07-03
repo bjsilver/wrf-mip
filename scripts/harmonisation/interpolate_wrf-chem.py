@@ -14,7 +14,7 @@ from constants import pollutants
 
 
 wrf_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
-wrf = xr.open_dataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/wrfchem_regridded.nc')
+wrf = xr.open_mfdataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/*regridded.nc')
 
 measurement_path = '/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/'
 meta = pd.read_csv(measurement_path+'metadata.csv', index_col=0)

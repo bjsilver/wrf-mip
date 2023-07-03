@@ -5,6 +5,8 @@ Created on Fri Jun  2 14:38:39 2023
 
 @author: eebjs
 """
+
+
 import cdsapi
 import yaml
 
@@ -15,8 +17,8 @@ c = cdsapi.Client(url=credentials['url'], key=credentials['key'])
 c.retrieve(
     'cams-global-reanalysis-eac4',
     {
-        'date': '2017-05-01/2019-09-01',
-        'format': 'netcdf',
+        'date': '2017-06-01/2017-10-01',
+        'format': 'grib',
         'variable': [
             'nitrogen_dioxide', 'ozone',
             'particulate_matter_2.5um', 'sulphur_dioxide',
@@ -33,4 +35,4 @@ c.retrieve(
         'model_level': '60'
     },
     
-    '/nfs/a340/eebjs/wrf-mip/model_data/CAMS_reanalysis.nc')
+    '/nfs/a340/eebjs/wrf-mip/model_data/cams/CAMS_reanalysis.grib')

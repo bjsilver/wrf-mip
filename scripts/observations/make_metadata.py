@@ -28,7 +28,7 @@ def get_latlons():
 
 meta = get_latlons()
 
-for pol in ['no2', 'ozone', 'pm2_5', 'so2']:
+for pol in ['no2', 'o3', 'pm25', 'so2']:
 
     cleaned = pd.read_csv(f'/nfs/see-fs-02_users/eebjs/wrf-mip/data/cnemc_measurements/cleaned/{pol}_obs.csv', 
                           index_col=0, parse_dates=True)
