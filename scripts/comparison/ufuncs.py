@@ -12,7 +12,7 @@ import xarray as xr
 def load_models():
     
     #wrfchem
-    wrfchem = xr.open_mfdataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/*regridded.nc')
+    wrfchem = xr.open_mfdataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/*regridded.nc').compute()
 
     
     #wrf cmaq
