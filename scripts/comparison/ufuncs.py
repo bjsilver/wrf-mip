@@ -12,8 +12,8 @@ import xarray as xr
 def load_models():
     
     #wrfchem
-    wrf_path = '/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/'
-    wrfchem = xr.open_dataset(wrf_path+'wrfchem_regridded.nc')
+    wrfchem = xr.open_mfdataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfchem/regridded/*regridded.nc')
+
     
     #wrf cmaq
     wrf_cmaq = xr.open_dataset('/nfs/a340/eebjs/wrf-mip/model_data/wrfcmaq/regridded/wrfcmaq_regridded.nc')
