@@ -22,6 +22,7 @@ c.retrieve(
         'variable': [
             'nitrogen_dioxide', 'ozone',
             'particulate_matter_2.5um', 'sulphur_dioxide',
+            'surface_pressure', 'temperature',
         ],
         'time': [
             '00:00', '03:00', '06:00',

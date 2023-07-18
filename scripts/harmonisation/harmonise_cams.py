@@ -35,6 +35,26 @@ hybrid = xr.open_dataset(model_path+'CAMS_reanalysis.grib', engine="cfgrib",
 gribds = xr.merge([surface,hybrid])
 gribds = gribds.drop(['number', 'step','surface','valid_time','hybrid'])
 
+
+#%% conversions:
+    
+# convert pm2p5 kg/m3 to ug/m3
+gribds['pm2p5'] = gribds['pm2p5'] * 1e9
+
+# convert mass mixing ratios (kg/kg) to concentration (ug/m3)
+def mmr_to_conc(da, p, T):
+
+    R = 8.314
+    M_air = 0.02897
+
+    conv = da * (   (p * M_air)   / (R   *  T)     ) * 1e9
+    return conv
+
+for var in ['no2', 'go3', 'so2']:
+    gribds[var] = mmr_to_conc(gribds[var], gribds['sp'], gribds['t'])
+
+
+    
 #%% create regridder
 
 regridder = xe.Regridder(ds_in=gribds, ds_out=common_grid, method='bilinear')
@@ -42,7 +62,7 @@ regridder.to_netcdf('./regridders/cams.nc')
 
 #%%
 
-regridded = regridder(gribds)
+regridded = regridder(gribds[name_map.keys()])
 regridded = regridded.rename(name_map)
 
 comp = dict(zlib=True, complevel=5)
